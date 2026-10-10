@@ -1,16 +1,18 @@
 name: Build APK
 
-# Assembles the app against the core from s3-bypass-android-core.
+# Assembles the app against a pinned release of our core.
 #
-# The core is built here rather than committed. A 100 MB+ AAR in git history
-# is a liability — it can never be slimmed, every clone pays for it, and a
-# stale copy in app/libs/ silently ships last week's core. Gradle picks up
-# every *.aar in that directory, so two of them means an unpredictable build.
+# The AAR is downloaded, not built. Two reasons: a 100 MB artifact in git
+# history can never be slimmed and every clone pays for it, and Gradle
+# globs every *.aar in app/libs — so a committed copy would silently ship
+# whichever core was stale. Building it here instead would cost ~8 minutes
+# of NDK work per run to produce the same bytes as the tagged release.
 #
-# Building it means this workflow is also the integration test: if the AAR's
-# classes stop matching what the app resolves by reflection, the build is
-# still green — reflection happens at runtime — and only a device catches it.
-# So the artifact is verified with javap-signature checks after the build.
+# It is still verified, not trusted. verify-aar.sh is the same script the
+# core's own CI runs: it checks the core marker, the three classes the app
+# resolves by reflection, and the method signatures. That last part is the
+# only automated check in this chain for something reflection resolves at
+# runtime — a mismatched signature compiles cleanly and fails on connect.
 
 on:
   push:
@@ -23,8 +25,9 @@ jobs:
     name: assemble debug APK
     runs-on: ubuntu-latest
     env:
-      # Bump deliberately: this is what every APK ships.
-      CORE_TAG: v0.1.0-fork.3
+      # A tag of s3-bypass-android-core, not of s3-bypass-protocol. Bumping
+      # it is what ships a new core to every build.
+      CORE_RELEASE: v0.1.0-android.1
 
     steps:
       - uses: actions/checkout@v6
@@ -34,39 +37,25 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: actions/setup-go@v6
-        with:
-          go-version: '1.27'
-          check-latest: true
-
       - name: Android SDK
         uses: android-actions/setup-android@v3
         with:
           # The action's default "tools" package no longer exists upstream.
           packages: 'cmdline-tools;latest'
 
-      - name: Install NDK and gomobile
-        run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager --install "ndk;27.2.12479018" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/27.2.12479018" >> "$GITHUB_ENV"
-          go install golang.org/x/mobile/cmd/gomobile@latest
-          gomobile init
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Install platform
+        run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "platform-tools"
 
-      - name: Build the core AAR
+      - name: Fetch the core
         run: |
           git clone --quiet --depth 1 \
-            --branch "$CORE_TAG" \
+            --branch "$CORE_RELEASE" \
             https://github.com/thevladimirzh/s3-bypass-android-core.git /tmp/core
-          # The core script fetches its own pinned copy of xray-core. CORE_TAG
-          # here is the tag of the *binding*; the tag of the core is set inside
-          # that script. They move independently, and that is deliberate.
-          rm -f app/libs/*.aar
-          CORE_TAG="$CORE_TAG" OUT="$GITHUB_WORKSPACE/app/libs" /tmp/core/scripts/build-aar.sh
+          curl -fsSL -o app/libs/libxray.aar \
+            "https://github.com/thevladimirzh/s3-bypass-android-core/releases/download/${CORE_RELEASE}/libxray.aar"
           ls -la app/libs/
 
-      - name: Verify the core in the APK inputs
+      - name: Verify the core
         run: /tmp/core/scripts/verify-aar.sh app/libs/libxray.aar
 
       - name: Assemble
