@@ -25,7 +25,7 @@ jobs:
     name: assemble debug APK
     runs-on: ubuntu-latest
     env:
-      # A tag of s3-bypass-android-core, not of s3-bypass-protocol. Bumping
+      # A tag of the core release attached to this repository. Bumping
       # it is what ships a new core to every build.
       CORE_RELEASE: v0.1.0-android.1
 
@@ -47,20 +47,23 @@ jobs:
         run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "platform-tools"
 
       - name: Fetch the core
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git clone --quiet --depth 1 \
-            --branch "$CORE_RELEASE" \
-            https://github.com/thevladimirzh/s3-bypass-android-core.git /tmp/core
-          # app/libs holds no committed files — the AAR is the only thing that
-          # ever lived there, and it is gitignored — so the directory does not
-          # exist in a fresh checkout and curl cannot write into it.
+          # Downloaded from this repository's own release rather than from
+          # s3-bypass-android-core: while that one is private, an unauthenticated
+          # download 404s, and the default GITHUB_TOKEN cannot read another
+          # repository even when both belong to us. Owning the copy here keeps
+          # the build working without a personal access token as a secret.
           mkdir -p app/libs
-          curl -fsSL -o app/libs/libxray.aar \
-            "https://github.com/thevladimirzh/s3-bypass-android-core/releases/download/${CORE_RELEASE}/libxray.aar"
+          gh release download "$CORE_RELEASE" \
+            --repo thevladimirzh/s3-bypass-android \
+            --pattern libxray.aar \
+            --dir app/libs
           ls -la app/libs/
 
       - name: Verify the core
-        run: /tmp/core/scripts/verify-aar.sh app/libs/libxray.aar
+        run: scripts/verify-aar.sh app/libs/libxray.aar
 
       - name: Assemble
         run: |
