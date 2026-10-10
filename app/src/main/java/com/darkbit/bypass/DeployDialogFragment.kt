@@ -560,14 +560,14 @@ class DeployDialogFragment : DialogFragment() {
         # produced a different binary, with no record of which one was running
         # and no way back to the last known-good build.
         XRAY_CORE_TAG="v0.1.0-fork.3"
-        echo "Клонирование s3-bypass-protocol @ ${XRAY_CORE_TAG}..."
-        git clone --quiet --depth 1 --branch "${XRAY_CORE_TAG}" https://github.com/thevladimirzh/s3-bypass-protocol.git /tmp/xray-build
+        echo "Клонирование s3-bypass-protocol @ ${'$'}{XRAY_CORE_TAG}..."
+        git clone --quiet --depth 1 --branch "${'$'}{XRAY_CORE_TAG}" https://github.com/thevladimirzh/s3-bypass-protocol.git /tmp/xray-build
         echo "Ревизия: $(git -C /tmp/xray-build rev-parse --short HEAD)"
         cd /tmp/xray-build/main
         echo "Запуск компиляции (это может занять 1-3 минуты)..."
         go build -o /usr/local/bin/xray-fedarisha -trimpath -ldflags "-s -w"
         chmod +x /usr/local/bin/xray-fedarisha
-        echo "Ядро успешно скомпилировано (${XRAY_CORE_TAG})."
+        echo "Ядро успешно скомпилировано (${'$'}{XRAY_CORE_TAG})."
 
         echo "=== [5/6] Создание конфигурации сервера ==="
         mkdir -p /usr/local/etc/xray-fedarisha/
