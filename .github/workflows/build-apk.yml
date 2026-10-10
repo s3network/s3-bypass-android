@@ -51,6 +51,10 @@ jobs:
           git clone --quiet --depth 1 \
             --branch "$CORE_RELEASE" \
             https://github.com/thevladimirzh/s3-bypass-android-core.git /tmp/core
+          # app/libs holds no committed files — the AAR is the only thing that
+          # ever lived there, and it is gitignored — so the directory does not
+          # exist in a fresh checkout and curl cannot write into it.
+          mkdir -p app/libs
           curl -fsSL -o app/libs/libxray.aar \
             "https://github.com/thevladimirzh/s3-bypass-android-core/releases/download/${CORE_RELEASE}/libxray.aar"
           ls -la app/libs/
