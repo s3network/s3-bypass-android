@@ -1,0 +1,33 @@
+# Built-in Gradle files
+.gradle/
+build/
+
+# Local configuration file (contains local paths, SDK paths, etc.)
+local.properties
+
+# Log files
+*.log
+
+# Android Studio / IntelliJ IDEA files
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Keystore files
+*.jks
+*.keystore
+
+# macOS files
+.DS_Store
+app/release/
+
+# Release signing material — never commit these.
+app/keystore.properties
+*.jks
+*.keystore
+
+# The core AAR is a build artifact — CI builds it from
+# s3-bypass-android-core. Gradle globs every *.aar in this directory,
+# so a committed one would silently ship whichever core was stale.
+app/libs/*.aar

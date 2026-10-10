@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_home"
+        android:icon="@drawable/ic_nav_home"
+        android:title="Главная" />
+
+    <item
+        android:id="@+id/nav_profiles"
+        android:icon="@drawable/ic_nav_profiles"
+        android:title="Профили" />
+
+    <item
+        android:id="@+id/nav_apps"
+        android:icon="@drawable/ic_nav_apps"
+        android:title="Туннель" />
+
+    <item
+        android:id="@+id/nav_logs"
+        android:icon="@drawable/ic_nav_logs"
+        android:title="Логи" />
+
+    <item
+        android:id="@+id/nav_about"
+        android:icon="@drawable/ic_nav_about"
+        android:title="Инфо" />
+</menu>

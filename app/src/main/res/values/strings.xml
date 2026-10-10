@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">S3 Bypass</string>
+    <string name="notification_channel_name">S3 VPN</string>
+    <string name="notification_title">S3 Bypass запущен</string>
+    <string name="notification_text">Защищенное соединение активно</string>
+</resources>
+

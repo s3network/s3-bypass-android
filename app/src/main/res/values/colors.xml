@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Backgrounds -->
+    <color name="bg_primary">#121118</color>
+    <color name="bg_surface">#1C1A24</color>
+    <color name="bg_surface_light">#24222E</color>
+    <color name="border_subtle">#2E2A3C</color>
+
+    <!-- Accents -->
+    <color name="accent_cyan">#C4C0FF</color>
+    <color name="accent_cyan_dim">#35305E</color>
+    <color name="accent_purple">#C4C0FF</color>
+    <color name="accent_purple_light">#D6D4FF</color>
+    <color name="accent_purple_dim">#3C3869</color>
+    <color name="accent_green">#C4C0FF</color>
+
+    <!-- Text -->
+    <color name="text_primary">#E6E5F3</color>
+    <color name="text_secondary">#9693B0</color>
+    <color name="text_muted">#565370</color>
+
+    <!-- Speed -->
+    <color name="speed_download">#C4C0FF</color>
+    <color name="speed_upload">#D6D4FF</color>
+
+    <!-- Status -->
+    <color name="status_connected">#C4C0FF</color>
+    <color name="status_connecting">#D6D4FF</color>
+    <color name="status_disconnected">#565370</color>
+
+    <!-- Logs -->
+    <color name="log_success">#C4C0FF</color>
+    <color name="log_info">#9693B0</color>
+    <color name="log_warning">#E8C97A</color>
+    <color name="log_error">#FF7B9C</color>
+</resources>

@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bottom_sheet_bg"
+    android:paddingTop="12dp"
+    android:paddingBottom="32dp"
+    android:paddingHorizontal="24dp">
+
+    <!-- Bottom sheet drag handle -->
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:background="@drawable/handle_bg"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="20dp" />
+
+    <!-- Header -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Логи работы"
+        android:textColor="@color/text_primary"
+        android:textSize="20sp"
+        android:fontFamily="sans-serif-medium"
+        android:layout_marginBottom="4dp" />
+
+    <!-- Subtitle / Warning -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="В логах содержится техническая информация о подключении."
+        android:textColor="@color/text_muted"
+        android:textSize="12sp"
+        android:fontFamily="sans-serif"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Terminal Box -->
+    <ScrollView
+        android:id="@+id/scrollLogs"
+        android:layout_width="match_parent"
+        android:layout_height="280dp"
+        android:background="@drawable/console_bg"
+        android:padding="12dp"
+        android:scrollbars="vertical"
+        android:overScrollMode="ifContentScrolls">
+
+        <TextView
+            android:id="@+id/tvLogContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Логи пусты..."
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:textIsSelectable="true"
+            android:lineSpacingMultiplier="1.2" />
+
+    </ScrollView>
+
+    <!-- Spacing -->
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="20dp" />
+
+    <!-- Action Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <!-- Clear Logs Button -->
+        <LinearLayout
+            android:id="@+id/btnLogsClear"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1.2"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:background="@drawable/tg_link_bg"
+            android:layout_marginEnd="6dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Очистить"
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp"
+                android:fontFamily="sans-serif-medium" />
+
+        </LinearLayout>
+
+        <!-- Copy Logs Button -->
+        <LinearLayout
+            android:id="@+id/btnLogsCopy"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1.2"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:background="@drawable/tg_link_bg"
+            android:layout_marginEnd="6dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Копировать"
+                android:textColor="@color/accent_cyan"
+                android:textSize="13sp"
+                android:fontFamily="sans-serif-medium" />
+
+        </LinearLayout>
+
+        <!-- Share Logs Button -->
+        <LinearLayout
+            android:id="@+id/btnLogsShare"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1.6"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:background="@drawable/import_button_bg"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Поделиться"
+                android:textColor="@color/accent_cyan"
+                android:textSize="13sp"
+                android:fontFamily="sans-serif-medium" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

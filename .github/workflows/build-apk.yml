@@ -1,0 +1,82 @@
+name: Build APK
+
+# Assembles the app against the core from s3-bypass-android-core.
+#
+# The core is built here rather than committed. A 100 MB+ AAR in git history
+# is a liability — it can never be slimmed, every clone pays for it, and a
+# stale copy in app/libs/ silently ships last week's core. Gradle picks up
+# every *.aar in that directory, so two of them means an unpredictable build.
+#
+# Building it means this workflow is also the integration test: if the AAR's
+# classes stop matching what the app resolves by reflection, the build is
+# still green — reflection happens at runtime — and only a device catches it.
+# So the artifact is verified with javap-signature checks after the build.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  apk:
+    name: assemble debug APK
+    runs-on: ubuntu-latest
+    env:
+      # Bump deliberately: this is what every APK ships.
+      CORE_TAG: v0.1.0-fork.3
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.27'
+          check-latest: true
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          # The action's default "tools" package no longer exists upstream.
+          packages: 'cmdline-tools;latest'
+
+      - name: Install NDK and gomobile
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager --install "ndk;27.2.12479018" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          go install golang.org/x/mobile/cmd/gomobile@latest
+          gomobile init
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Build the core AAR
+        run: |
+          git clone --quiet --depth 1 \
+            --branch "$CORE_TAG" \
+            https://github.com/thevladimirzh/s3-bypass-android-core.git /tmp/core
+          # The core script fetches its own pinned copy of xray-core. CORE_TAG
+          # here is the tag of the *binding*; the tag of the core is set inside
+          # that script. They move independently, and that is deliberate.
+          rm -f app/libs/*.aar
+          CORE_TAG="$CORE_TAG" OUT="$GITHUB_WORKSPACE/app/libs" /tmp/core/scripts/build-aar.sh
+          ls -la app/libs/
+
+      - name: Verify the core in the APK inputs
+        run: /tmp/core/scripts/verify-aar.sh app/libs/libxray.aar
+
+      - name: Assemble
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: s3-bypass-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

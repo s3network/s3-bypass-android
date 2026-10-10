@@ -1,0 +1,26 @@
+<resources>
+    <style name="Theme.Fedarisha" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/accent_cyan</item>
+        <item name="colorPrimaryVariant">@color/accent_purple_light</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="android:windowBackground">@color/bg_primary</item>
+        <item name="android:statusBarColor">@color/bg_primary</item>
+        <item name="android:navigationBarColor">@color/bg_primary</item>
+        <item name="android:windowLightStatusBar">false</item>
+        
+        <!-- Dialog styling -->
+        <item name="materialAlertDialogTheme">@style/CustomMaterialAlertDialog</item>
+    </style>
+
+    <style name="CustomMaterialAlertDialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <item name="colorSurface">@color/bg_surface</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="colorPrimary">@color/accent_cyan</item>
+    </style>
+
+    <style name="Theme.Fedarisha.FullScreenDialog" parent="Theme.Fedarisha">
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowFullscreen">false</item>
+    </style>
+</resources>
