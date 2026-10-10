@@ -64,8 +64,18 @@ jobs:
 
       - name: Assemble
         run: |
-          chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug
+          # Gradle is installed from the distribution instead of a wrapper:
+          # the repository ships gradle-wrapper.properties but no gradlew and
+          # no gradle-wrapper.jar, so there is nothing to run. The version
+          # below is read from that file rather than repeated, so the two
+          # cannot drift.
+          GRADLE_VERSION="$(sed -n 's|.*gradle-\(.*\)-bin\.zip.*|\1|p' gradle/wrapper/gradle-wrapper.properties)"
+          echo "Gradle $GRADLE_VERSION"
+          curl -fsSL -o /tmp/gradle.zip \
+            "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip"
+          unzip -q /tmp/gradle.zip -d /opt
+          chmod +x "/opt/gradle-${GRADLE_VERSION}/bin/gradle"
+          "/opt/gradle-${GRADLE_VERSION}/bin/gradle" --no-daemon assembleDebug
 
       - name: Upload
         uses: actions/upload-artifact@v4
