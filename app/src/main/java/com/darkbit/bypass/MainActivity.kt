@@ -1398,18 +1398,33 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val progress = android.app.ProgressDialog(this).apply {
-            message = "Скачивание обновления…"
-            isIndeterminate = false
-            max = 100
-            setCancelable(false)
+        // A plain dialog rather than the deprecated android.app.ProgressDialog:
+        // one that still compiles cleanly and does not carry the deprecation
+        // into every call site.
+        val progressView = android.view.LayoutInflater.from(this)
+            .inflate(android.R.layout.progress_horizontal, null)
+        val bar = progressView.findViewById<android.widget.ProgressBar>(android.R.id.progress)
+        val label = android.widget.TextView(this).apply {
+            text = "Скачивание обновления…"
+            setPadding(48, 32, 48, 8)
         }
-        progress.show()
+        val box = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            addView(label)
+            addView(progressView)
+        }
+        val progress = com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setView(box)
+            .setCancelable(false)
+            .show()
 
         lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) {
                 UpdateInstaller.download(this@MainActivity, release.apkUrl) { p ->
-                    withContext(Dispatchers.Main) { progress.progress = p }
+                    // A plain callback, not a coroutine: it is invoked from
+                    // the IO thread mid-read, and withContext cannot be
+                    // entered from a non-suspending context.
+                    runOnUiThread { bar.progress = p }
                 }
             }
             progress.dismiss()

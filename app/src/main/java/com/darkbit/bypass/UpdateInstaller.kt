@@ -103,10 +103,12 @@ object UpdateInstaller {
     fun signatureMatches(context: Context, apk: File): Boolean {
         fun signers(info: android.content.pm.PackageInfo?): Set<String> {
             if (info == null) return emptySet()
+            // Signature.toCharsString() is the hex of the certificate and is
+            // available on every level; the branch exists only because the
+            // field holding them was renamed in API 28.
             return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                info.signingInfo?.apkContentsSigners?.map { bytes ->
-                    bytes.joinToString("") { "%02x".format(it) }
-                }?.toSet() ?: emptySet()
+                info.signingInfo?.apkContentsSigners?.map { it.toCharsString() }?.toSet()
+                    ?: emptySet()
             } else {
                 @Suppress("DEPRECATION")
                 info.signatures?.map { it.toCharsString() }?.toSet() ?: emptySet()
