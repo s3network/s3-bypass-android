@@ -3,6 +3,7 @@ package com.darkbit.bypass
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -23,8 +24,22 @@ import java.net.URL
 object UpdateChecker {
 
     private const val TAG = "UpdateChecker"
-    private const val RELEASES_URL =
-        "https://api.github.com/repos/s3network/s3-bypass-android/releases/latest"
+
+    /**
+     * The release LIST, not `/releases/latest`.
+     *
+     * `latest` excludes prereleases by definition, and every app release in
+     * this repository is one. Measured against it, that endpoint answers with
+     * `v0.1.0-android.1` — the only stable tag — whose sole asset is
+     * `libxray.aar`, a library and not an installable app. The parser then
+     * finds no `.apk` in it and returns null on every single check, forever:
+     * the updater reports "up to date" while `v1.1.1` sits published and
+     * visible, with nothing on screen to say why.
+     *
+     * Read as a list, the selection is ours to make — see [parseReleases].
+     */
+    const val RELEASES_URL =
+        "https://api.github.com/repos/s3network/s3-bypass-android/releases?per_page=20"
     private const val CONNECT_TIMEOUT_MS = 6_000
     private const val READ_TIMEOUT_MS = 6_000
 
@@ -45,6 +60,69 @@ object UpdateChecker {
         val pageUrl: String,
     )
 
+    /** A release plus the date that only ever breaks a tie between equals. */
+    private data class Stamped(
+        val release: Release,
+        val publishedAt: String,
+    )
+
+    /**
+     * Every release worth offering, newest first.
+     *
+     * Three filters, each for a reason found in this repository's own data:
+     *
+     *  - **drafts** are never a published build;
+     *  - **no `.apk`, not a candidate.** `libxray.aar` is the core library and
+     *    ships under the `v0.1.0-android.*` tag line. Offering a library as an
+     *    app update would be worse than reporting nothing at all;
+     *  - **ordered by version, not by list position.** This repository carries
+     *    two tag lines at once, so where a release sits in the response says
+     *    nothing about how new it is. The published date breaks only ties.
+     */
+    fun parseReleases(body: String): List<Release> {
+        val parsed = try {
+            JSONArray(body)
+        } catch (e: Exception) {
+            // Expected whenever the tunnel is down mid-answer. An empty list is
+            // the silent "no update known" path, never a crash.
+            return emptyList()
+        }
+
+        val candidates = mutableListOf<Stamped>()
+        for (i in 0 until parsed.length()) {
+            val entry = parsed.optJSONObject(i) ?: continue
+            if (entry.optBoolean("draft", false)) continue
+
+            val tag = entry.optString("tag_name")
+            if (tag.isBlank()) continue
+            val version = tag.removePrefix("v")
+            if (version.isBlank()) continue
+
+            val asset = chooseApk(entry.optJSONArray("assets")) ?: continue
+
+            candidates += Stamped(
+                Release(
+                    tag = tag,
+                    version = version,
+                    apkUrl = asset.optString("browser_download_url"),
+                    apkName = asset.optString("name"),
+                    sizeBytes = asset.optLong("size", 0L),
+                    prerelease = entry.optBoolean("prerelease", false),
+                    pageUrl = entry.optString("html_url").ifBlank {
+                        "https://github.com/s3network/s3-bypass-android/releases/latest"
+                    },
+                ),
+                entry.optString("published_at"),
+            )
+        }
+
+        return candidates.sortedWith(
+            compareByDescending<Stamped> { it.release.version }
+                .thenByDescending { it.publishedAt },
+        ).map { it.release }
+    }
+
+    /** The newest release carrying an installable APK, or null when none is. */
     suspend fun checkLatest(): Release? = withContext(Dispatchers.IO) {
         var conn: HttpURLConnection? = null
         try {
@@ -64,7 +142,7 @@ object UpdateChecker {
                 Log.w(TAG, "release lookup returned $code")
                 return@withContext null
             }
-            parse(conn.inputStream.bufferedReader().use { it.readText() })
+            parseReleases(conn.inputStream.bufferedReader().use { it.readText() }).firstOrNull()
         } catch (e: Exception) {
             // Expected whenever the tunnel is down. Silent by design.
             Log.i(TAG, "release lookup failed: ${e.message}")
@@ -74,37 +152,29 @@ object UpdateChecker {
         }
     }
 
-    private fun parse(body: String): Release? {
-        val root = JSONObject(body)
-        val tag = root.optString("tag_name").ifBlank { return null }
-        val version = tag.removePrefix("v").ifBlank { return null }
-
+    /**
+     * The best APK in one release, in order of preference.
+     *
+     * arm64 first because that is what current phones run; universal installs
+     * anywhere and is the fallback; armeabi-v7a is the last resort. A release
+     * with no APK at all yields null — see [parseReleases].
+     */
+    private fun chooseApk(assets: JSONArray?): JSONObject? {
+        if (assets == null) return null
         var chosen: JSONObject? = null
-        val assets = root.optJSONArray("assets")
-        if (assets != null) {
-            for (i in 0 until assets.length()) {
-                val a = assets.getJSONObject(i)
-                val name = a.optString("name")
-                if (!name.endsWith(".apk")) continue
-                if (chosen == null || ASSET_PREFERENCE.indexOf(name) in 0 until
-                    ASSET_PREFERENCE.indexOf(chosen.optString("name"))) {
-                    chosen = a
-                }
+        for (i in 0 until assets.length()) {
+            val candidate = assets.optJSONObject(i) ?: continue
+            val name = candidate.optString("name")
+            val rank = ASSET_PREFERENCE.indexOf(name)
+            // Not in the preference list means not one of ours to offer.
+            if (rank < 0) continue
+            val currentRank =
+                chosen?.let { ASSET_PREFERENCE.indexOf(it.optString("name")) } ?: -1
+            if (chosen == null || rank < currentRank) {
+                chosen = candidate
             }
         }
-        val asset = chosen ?: return null
-
-        return Release(
-            tag = tag,
-            version = version,
-            apkUrl = asset.optString("browser_download_url"),
-            apkName = asset.optString("name"),
-            sizeBytes = asset.optLong("size", 0L),
-            prerelease = root.optBoolean("prerelease", false),
-            pageUrl = root.optString("html_url").ifBlank {
-                "https://github.com/s3network/s3-bypass-android/releases/latest"
-            },
-        )
+        return chosen
     }
 
     /**
