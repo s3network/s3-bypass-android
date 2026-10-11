@@ -57,7 +57,7 @@ jobs:
           # the build working without a personal access token as a secret.
           mkdir -p app/libs
           gh release download "$CORE_RELEASE" \
-            --repo thevladimirzh/s3-bypass-android \
+            --repo s3network/s3-bypass-android \
             --pattern libxray.aar \
             --dir app/libs
           ls -la app/libs/

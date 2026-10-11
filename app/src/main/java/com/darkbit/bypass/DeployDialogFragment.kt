@@ -561,7 +561,7 @@ class DeployDialogFragment : DialogFragment() {
         # and no way back to the last known-good build.
         XRAY_CORE_TAG="v0.1.0-fork.3"
         echo "Клонирование s3-bypass-protocol @ ${'$'}{XRAY_CORE_TAG}..."
-        git clone --quiet --depth 1 --branch "${'$'}{XRAY_CORE_TAG}" https://github.com/thevladimirzh/s3-bypass-protocol.git /tmp/xray-build
+        git clone --quiet --depth 1 --branch "${'$'}{XRAY_CORE_TAG}" https://github.com/s3network/s3-bypass-protocol.git /tmp/xray-build
         echo "Ревизия: $(git -C /tmp/xray-build rev-parse --short HEAD)"
         cd /tmp/xray-build/main
         echo "Запуск компиляции (это может занять 1-3 минуты)..."

@@ -12,8 +12,8 @@
 > **Что изменено по сравнению с оригиналом:**
 >
 > - Ядро заменено на сборку из
->   [s3-bypass-android-core](https://github.com/thevladimirzh/s3-bypass-android-core)
->   поверх [s3-bypass-protocol](https://github.com/thevladimirzh/s3-bypass-protocol):
+>   [s3-bypass-android-core](https://github.com/s3network/s3-bypass-android-core)
+>   поверх [s3-bypass-protocol](https://github.com/s3network/s3-bypass-protocol):
 >   исправление потери файлов под нагрузкой и четыре ABI вместо одного;
 > - скрипт развёртывания сервера клонирует наш форк **с пином по тегу**, а не
 >   upstream `main` без пина, из-за чего каждый редеплой давал произвольную сборку;
