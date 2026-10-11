@@ -118,8 +118,12 @@ object UpdateChecker {
     fun isNewer(remote: String, local: String): Boolean = compare(remote, local) > 0
 
     fun compare(a: String, b: String): Int {
-        val pa = a.split('.')
-        val pb = b.split('.')
+        // Strip a leading "v" on both sides. parse() already removes it from
+        // the tag, so this is belt and braces — but without it a stray "v"
+        // becomes a component that parses as 0, silently downgrading "v1.2.0"
+        // to "0.2.0" and hiding an update behind a wrong answer.
+        val pa = a.removePrefix("v").split('.')
+        val pb = b.removePrefix("v").split('.')
         val n = maxOf(pa.size, pb.size)
         for (i in 0 until n) {
             // "1.2.3-beta" → 3; anything unparseable counts as 0 rather than
