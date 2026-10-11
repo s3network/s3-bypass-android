@@ -83,5 +83,12 @@ dependencies {
     // can fail silently: a wrong answer means "up to date" forever, with
     // nothing on screen to say otherwise.
     testImplementation 'junit:junit:4.13.2'
+    // The real org.json, for the same reason. Unit tests run against android.jar,
+    // where org.json is a stub whose every method throws "not mocked" — so the
+    // release-selection cases could not parse a single body. `returnDefaultValues`
+    // is the tempting alternative and is useless here: it would hand back null
+    // and 0, and the parser under test would then be tested against nothing.
+    // This is test scope only; the APK keeps Android's own implementation.
+    testImplementation 'org.json:json:20231013'
     implementation 'com.github.mwiede:jsch:0.2.20'
 }
