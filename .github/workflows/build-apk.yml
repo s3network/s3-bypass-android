@@ -27,7 +27,7 @@ jobs:
     env:
       # A tag of the core release attached to this repository. Bumping
       # it is what ships a new core to every build.
-      CORE_RELEASE: v0.1.0-android.1
+      CORE_RELEASE: v0.1.0-android.2
 
     steps:
       - uses: actions/checkout@v6
