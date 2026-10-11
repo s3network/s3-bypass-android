@@ -1400,10 +1400,11 @@ class MainActivity : AppCompatActivity() {
 
         // A plain dialog rather than the deprecated android.app.ProgressDialog:
         // one that still compiles cleanly and does not carry the deprecation
-        // into every call site.
-        val progressView = android.view.LayoutInflater.from(this)
-            .inflate(android.R.layout.progress_horizontal, null)
-        val bar = progressView.findViewById<android.widget.ProgressBar>(android.R.id.progress)
+        // into every call site. The bar is built in code because there is no
+        // framework layout that is just a determinate horizontal progress bar.
+        val bar = android.widget.ProgressBar(
+            this, null, android.R.attr.progressBarStyleHorizontal,
+        ).apply { max = 100 }
         val label = android.widget.TextView(this).apply {
             text = "Скачивание обновления…"
             setPadding(48, 32, 48, 8)
@@ -1411,7 +1412,7 @@ class MainActivity : AppCompatActivity() {
         val box = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
             addView(label)
-            addView(progressView)
+            addView(bar)
         }
         val progress = com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setView(box)
@@ -1424,7 +1425,7 @@ class MainActivity : AppCompatActivity() {
                     // A plain callback, not a coroutine: it is invoked from
                     // the IO thread mid-read, and withContext cannot be
                     // entered from a non-suspending context.
-                    runOnUiThread { bar.progress = p }
+                    bar.post { bar.progress = p }
                 }
             }
             progress.dismiss()
