@@ -79,5 +79,9 @@ dependencies {
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    // For the version comparison, which is the one piece of the updater that
+    // can fail silently: a wrong answer means "up to date" forever, with
+    // nothing on screen to say otherwise.
+    testImplementation 'junit:junit:4.13.2'
     implementation 'com.github.mwiede:jsch:0.2.20'
 }

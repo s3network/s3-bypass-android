@@ -102,7 +102,7 @@ jobs:
           fi
           echo "keystore restored and verified"
 
-      - name: Assemble
+      - name: Install Gradle
         run: |
           # Gradle is installed from the distribution instead of a wrapper:
           # the repository ships gradle-wrapper.properties but no gradlew and
@@ -115,11 +115,26 @@ jobs:
             "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip"
           unzip -q /tmp/gradle.zip -d /opt
           chmod +x "/opt/gradle-${GRADLE_VERSION}/bin/gradle"
+          # Exported, not a shell variable: the test and assemble steps are
+          # separate shells, and a version computed in one is invisible in
+          # the other — which is how a test step ends up running no tests.
+          echo "GRADLE_BIN=/opt/gradle-${GRADLE_VERSION}/bin/gradle" >> "$GITHUB_ENV"
+
+      - name: Unit tests
+        run: |
+          # The version comparison is the piece of the updater that fails
+          # silently: a wrong answer means "up to date" forever with nothing
+          # on screen to explain it. Runs before the APK so a regression costs
+          # seconds instead of a full assemble.
+          "$GRADLE_BIN" --no-daemon testReleaseUnitTest --console=plain
+
+      - name: Assemble
+        run: |
           # assembleRelease, not assembleDebug. The release build is the only
           # one that reads app/keystore.properties, so the debug variant would
           # quietly produce an APK signed with the shared debug key again —
           # and that one cannot be upgraded over later.
-          "/opt/gradle-${GRADLE_VERSION}/bin/gradle" --no-daemon assembleRelease
+          "$GRADLE_BIN" --no-daemon assembleRelease
 
       - name: Verify the signature
         run: |

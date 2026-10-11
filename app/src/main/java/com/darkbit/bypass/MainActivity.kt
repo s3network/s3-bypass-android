@@ -25,6 +25,7 @@ import android.widget.ScrollView
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import java.io.File
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -278,6 +279,11 @@ class MainActivity : AppCompatActivity() {
         checkFirstLaunchGreeting()
         checkForUpdates()
         handleExternalConfigIntent(intent)
+
+        // Tapping the version is an explicit "look for updates" request. The
+        // automatic check is daily and silent, so without this there is no
+        // way to force it when a release lands today.
+        binding.tvVersion.setOnClickListener { checkForUpdates(manual = true) }
 
         // Set app version dynamically
         try {
@@ -1290,60 +1296,66 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun checkForUpdates() {
+    /**
+     * Looks for a newer build and, if there is one, reveals the update button.
+     *
+     * Replaces an earlier check that asked
+     * `SpaceNeuroX/s3-bypass` — the upstream author's repository — so it
+     * tracked releases of a different application and never saw ours. Silent
+     * by design: this app is a VPN client, and a check that throws a dialog
+     * when the tunnel is down interrupts the one moment the user needs to be
+     * left alone.
+     *
+     * Throttled to once a day. GitHub's unauthenticated API allows 60 requests
+     * per hour per address, and this runs at every launch.
+     */
+    private fun checkForUpdates(manual: Boolean = false) {
         val prefs = getSharedPreferences("vpn_prefs", MODE_PRIVATE)
-        if (!prefs.getBoolean("disclosure_accepted", false)) return
+        val lastCheck = prefs.getLong("last_update_check", 0L)
+        val aDay = 24 * 60 * 60 * 1000L
+        if (!manual && System.currentTimeMillis() - lastCheck < aDay) return
+        prefs.edit().putLong("last_update_check", System.currentTimeMillis()).apply()
 
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val currentVersion = packageManager.getPackageInfo(packageName, 0).versionName ?: "1.0"
-                val url = java.net.URL("https://api.github.com/repos/SpaceNeuroX/s3-bypass/releases/latest")
-                val connection = url.openConnection() as java.net.HttpURLConnection
-                connection.requestMethod = "GET"
-                connection.setRequestProperty("User-Agent", "S3-Bypass-Android-App")
-                connection.connectTimeout = 10000
-                connection.readTimeout = 10000
+        val current = try {
+            packageManager.getPackageInfo(packageName, 0).versionName ?: "1.0"
+        } catch (e: Exception) {
+            "1.0"
+        }
 
-                if (connection.responseCode == 200) {
-                    val response = connection.inputStream.bufferedReader().use { it.readText() }
-                    val json = org.json.JSONObject(response)
-                    val tagName = json.getString("tag_name")
-                    val htmlUrl = json.getString("html_url")
+        lifecycleScope.launch {
+            val release = UpdateChecker.checkLatest() ?: return@launch
+            if (!UpdateChecker.isNewer(release.version, current)) return@launch
 
-                    if (isNewerVersion(currentVersion, tagName)) {
-                        withContext(Dispatchers.Main) {
-                            showUpdateDialog(tagName, htmlUrl)
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("MainActivity", "Failed to check for updates", e)
+            binding.btnUpdateLabel.text = "Обновить до ${release.version}"
+            binding.btnUpdate.visibility = View.VISIBLE
+
+            binding.btnUpdate.setOnClickListener {
+                showUpdateDialog(release)
+            }
+
+            // A first-run user has never declined an update; do not interrupt
+            // them with a dialog for something they have not asked about.
+            if (!prefs.getBoolean("disclosure_accepted", false)) return@launch
+            if (manual || System.currentTimeMillis() - lastCheck > 3 * aDay) {
+                showUpdateDialog(release)
             }
         }
     }
 
-    private fun isNewerVersion(current: String, latest: String): Boolean {
-        val cleanCurrent = current.replace(Regex("[^0-9.]"), "")
-        val cleanLatest = latest.replace(Regex("[^0-9.]"), "")
-        val currParts = cleanCurrent.split(".").mapNotNull { it.toIntOrNull() }
-        val lateParts = cleanLatest.split(".").mapNotNull { it.toIntOrNull() }
-        val length = maxOf(currParts.size, lateParts.size)
-        for (i in 0 until length) {
-            val currVal = currParts.getOrElse(i) { 0 }
-            val lateVal = lateParts.getOrElse(i) { 0 }
-            if (lateVal > currVal) return true
-            if (currVal > lateVal) return false
-        }
-        return false
-    }
-
-    private fun showUpdateDialog(newVersion: String, downloadUrl: String) {
+    private fun showUpdateDialog(release: UpdateChecker.Release) {
         if (isFinishing || isDestroyed) return
+        val sizeText = if (release.sizeBytes > 0) {
+            " (${release.sizeBytes / (1024 * 1024)} МБ)"
+        } else {
+            ""
+        }
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle("Доступно обновление")
-            .setMessage("Доступна новая версия приложения ($newVersion). Хотите перейти на страницу релиза и скачать обновление?")
-            .setPositiveButton("Скачать") { dialog, _ ->
-                openUrl(downloadUrl)
+            .setMessage(
+                "Доступна версия ${release.version}$sizeText. Обновить сейчас?"
+            )
+            .setPositiveButton("Обновить") { dialog, _ ->
+                openUrl(release.pageUrl)
                 dialog.dismiss()
             }
             .setNegativeButton("Позже") { dialog, _ ->
