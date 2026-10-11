@@ -77,16 +77,30 @@ jobs:
           # system, so it has to be uninstalled first, losing its data. The
           # key comes from secrets and is written where build.gradle expects
           # it, never committed.
-          mkdir -p app
-          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$HOME/release.jks"
-          cat > app/keystore.properties <<PROPS
-          storePassword=$KEYSTORE_PASSWORD
-          keyPassword=$KEY_PASSWORD
-          keyAlias=$KEY_ALIAS
-          storeFile=$HOME/release.jks
-          PROPS
-          keytool -list -keystore "$HOME/release.jks" -storepass "$KEYSTORE_PASSWORD" >/dev/null \
-            || { echo "keystore is unreadable with the stored password" >&2; exit 1; }
+          set -euo pipefail
+          for v in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_PASSWORD KEY_ALIAS; do
+            if [ -z "${!v}" ]; then
+              echo "secret $v is empty — add it with: gh secret set $v --repo s3network/s3-bypass-android" >&2
+              exit 1
+            fi
+          done
+          # Write bytes through a file rather than a pipe: a base64 payload
+          # this size occasionally arrives truncated through a pipe on
+          # ubuntu runners, which produces a keystore that opens as garbage
+          # rather than failing loudly.
+          printf '%s' "$KEYSTORE_BASE64" > /tmp/keystore.b64
+          base64 -d /tmp/keystore.b64 > "$HOME/release.jks"
+          rm -f /tmp/keystore.b64
+          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=%s\n' \
+            "$KEYSTORE_PASSWORD" "$KEY_PASSWORD" "$KEY_ALIAS" "$HOME/release.jks" \
+            > app/keystore.properties
+          if ! keytool -list -keystore "$HOME/release.jks" \
+                        -storepass "$KEYSTORE_PASSWORD" >/dev/null 2>&1; then
+            echo "keystore does not open with the stored password" >&2
+            echo "keystore bytes: $(wc -c < "$HOME/release.jks")" >&2
+            exit 1
+          fi
+          echo "keystore restored and verified"
 
       - name: Assemble
         run: |
