@@ -22,7 +22,7 @@ on:
 
 jobs:
   apk:
-    name: assemble debug APK
+    name: assemble release APK
     runs-on: ubuntu-latest
     env:
       # A tag of the core release attached to this repository. Bumping
@@ -65,6 +65,29 @@ jobs:
       - name: Verify the core
         run: scripts/verify-aar.sh app/libs/libxray.aar
 
+      - name: Restore the release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          # A debug-signed APK can be installed but never upgraded: the next
+          # release signed with a real key is a different application to the
+          # system, so it has to be uninstalled first, losing its data. The
+          # key comes from secrets and is written where build.gradle expects
+          # it, never committed.
+          mkdir -p app
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$HOME/release.jks"
+          cat > app/keystore.properties <<PROPS
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=$HOME/release.jks
+          PROPS
+          keytool -list -keystore "$HOME/release.jks" -storepass "$KEYSTORE_PASSWORD" >/dev/null \
+            || { echo "keystore is unreadable with the stored password" >&2; exit 1; }
+
       - name: Assemble
         run: |
           # Gradle is installed from the distribution instead of a wrapper:
@@ -78,11 +101,31 @@ jobs:
             "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip"
           unzip -q /tmp/gradle.zip -d /opt
           chmod +x "/opt/gradle-${GRADLE_VERSION}/bin/gradle"
-          "/opt/gradle-${GRADLE_VERSION}/bin/gradle" --no-daemon assembleDebug
+          # assembleRelease, not assembleDebug. The release build is the only
+          # one that reads app/keystore.properties, so the debug variant would
+          # quietly produce an APK signed with the shared debug key again —
+          # and that one cannot be upgraded over later.
+          "/opt/gradle-${GRADLE_VERSION}/bin/gradle" --no-daemon assembleRelease
+
+      - name: Verify the signature
+        run: |
+          # Assert the artifact is signed by the release key and not the
+          # debug one. A misconfigured build would otherwise look identical
+          # in the artifact list and be undiagnosable once it reached a phone.
+          BUILD_TOOLS="$(ls -d "$ANDROID_SDK_ROOT"/build-tools/* | sort -V | tail -1)"
+          for APK in app/build/outputs/apk/release/*.apk; do
+            echo "== $APK"
+            "$BUILD_TOOLS/apksigner" verify --print-certs "$APK" | grep -E "Signer #1 certificate DN|SHA-256"
+          done
+          if "$BUILD_TOOLS/apksigner" verify --print-certs app/build/outputs/apk/release/*.apk \
+             | grep -q "CN=Android Debug"; then
+            echo "release build is signed with the debug key" >&2
+            exit 1
+          fi
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: s3-bypass-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: s3-bypass-release-apk
+          path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error

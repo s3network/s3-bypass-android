@@ -8,7 +8,7 @@ android {
     compileSdk 35
 
     defaultConfig {
-        applicationId "com.darkbit.bypass"
+        applicationId "com.s3network.bypass"
         minSdk 21
         targetSdk 35
         versionCode 15
