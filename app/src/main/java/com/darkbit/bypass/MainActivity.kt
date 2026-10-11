@@ -1355,13 +1355,98 @@ class MainActivity : AppCompatActivity() {
                 "Доступна версия ${release.version}$sizeText. Обновить сейчас?"
             )
             .setPositiveButton("Обновить") { dialog, _ ->
-                openUrl(release.pageUrl)
+                startUpdateDownload(release)
                 dialog.dismiss()
             }
             .setNegativeButton("Позже") { dialog, _ ->
                 dialog.dismiss()
             }
             .show()
+    }
+
+    /**
+     * Downloads the release and hands it to the installer.
+     *
+     * Deliberately not routed through the tunnel. This app is a VPN client: if
+     * the update came back over the connection it is meant to repair, a broken
+     * tunnel would make the fix unreachable at exactly the moment it is needed.
+     */
+    private fun startUpdateDownload(release: UpdateChecker.Release) {
+        if (release.apkUrl.isBlank()) {
+            openUrl(release.pageUrl)
+            return
+        }
+        if (!UpdateInstaller.canRequestInstall(this)) {
+            // Android 8+ wants the user to allow this app to install packages.
+            // Say what is being asked for instead of failing silently.
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("Нужно разрешение")
+                .setMessage(
+                    "Чтобы приложение могло обновить себя, разрешите ему " +
+                    "установку из неизвестных источников. Это делается один раз."
+                )
+                .setPositiveButton("Открыть настройки") { dialog, _ ->
+                    try {
+                        startActivity(UpdateInstaller.installPermissionSettingsIntent(this))
+                    } catch (e: Exception) {
+                        Toast.makeText(this, "Откройте настройки вручную", Toast.LENGTH_LONG).show()
+                    }
+                    dialog.dismiss()
+                }
+                .setNegativeButton("Позже") { dialog, _ -> dialog.dismiss() }
+                .show()
+            return
+        }
+
+        val progress = android.app.ProgressDialog(this).apply {
+            message = "Скачивание обновления…"
+            isIndeterminate = false
+            max = 100
+            setCancelable(false)
+        }
+        progress.show()
+
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                UpdateInstaller.download(this@MainActivity, release.apkUrl) { p ->
+                    withContext(Dispatchers.Main) { progress.progress = p }
+                }
+            }
+            progress.dismiss()
+
+            when (result) {
+                is UpdateInstaller.Result.Ready -> {
+                    if (!UpdateInstaller.signatureMatches(this@MainActivity, result.file)) {
+                        result.file.delete()
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Подпись обновления не совпадает — файл отклонён",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                        return@launch
+                    }
+                    val intent = UpdateInstaller.installIntent(this@MainActivity, result.file)
+                    if (intent == null) {
+                        result.file.delete()
+                        Toast.makeText(
+                            this@MainActivity,
+                            "На устройстве нет установщика пакетов",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    } else {
+                        startActivity(intent)
+                    }
+                }
+                UpdateInstaller.Result.PermissionNeeded ->
+                    Toast.makeText(this@MainActivity, "Нужно разрешение на установку", Toast.LENGTH_LONG).show()
+                is UpdateInstaller.Result.Failed ->
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Не удалось скачать: ${result.reason}",
+                        Toast.LENGTH_LONG,
+                    ).show()
+            }
+        }
     }
 
     private fun setupSplitTunneling() {

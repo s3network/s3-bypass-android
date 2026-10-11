@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <files-path name="configs" path="configs/" />
+    <!-- The downloaded update. cache-path, not files-path: the file is
+         disposable and must not survive into the next attempt, and Android
+         clears it under storage pressure on its own. -->
+    <cache-path name="updates" path="updates/" />
 </paths>
