@@ -559,7 +559,7 @@ class DeployDialogFragment : DialogFragment() {
         # Pinned by tag on purpose. Tracking upstream main meant every redeploy
         # produced a different binary, with no record of which one was running
         # and no way back to the last known-good build.
-        XRAY_CORE_TAG="v0.1.0-fork.5"
+        XRAY_CORE_TAG="v0.1.0-fork.4"
         echo "Клонирование s3-bypass-protocol @ ${'$'}{XRAY_CORE_TAG}..."
         git clone --quiet --depth 1 --branch "${'$'}{XRAY_CORE_TAG}" https://github.com/s3network/s3-bypass-protocol.git /tmp/xray-build
         echo "Ревизия: $(git -C /tmp/xray-build rev-parse --short HEAD)"
