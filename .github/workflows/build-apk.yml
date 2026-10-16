@@ -27,7 +27,18 @@ jobs:
     env:
       # A tag of the core release attached to this repository. Bumping
       # it is what ships a new core to every build.
-      CORE_RELEASE: v0.1.0-android.3
+      #
+      # android.4 carries the fork.6 core. Bumped because the server on
+      # vps-pl moved to fork.6 on 2026-10-14, and this is the only lever
+      # that decides what the APK ships: the core cannot be pulled from
+      # s3-bypass-android-core, so it is vendored into a release here.
+      #
+      # The fedarisha wire format is unchanged between fork.5 and fork.6,
+      # so this is not a compatibility bump — it brings the client up to
+      # the server: bounded decode buffers, a cap on per-connection
+      # buffering, timeouts on the S3 calls that run on session discovery,
+      # and delete errors that were previously swallowed.
+      CORE_RELEASE: v0.1.0-android.4
 
     steps:
       - uses: actions/checkout@v6
