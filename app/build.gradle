@@ -11,8 +11,8 @@ android {
         applicationId "com.s3network.bypass"
         minSdk 21
         targetSdk 35
-        versionCode 17
-        versionName "1.1.3"
+        versionCode 18
+        versionName "1.2.0"
     }
 
     // Release signing is read from keystore.properties, which is never
